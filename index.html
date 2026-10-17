@@ -114,6 +114,24 @@ tbody tr:last-child td{border-bottom:0}
 .tag.paid{background:#e3f6e9;color:#12693a;border:1px solid #b6e3c6}
 .tag.part{background:#fff4e0;color:#8a5400;border:1px solid #f2cf9a}
 .tag.due{background:var(--red-l);color:#8d2b20;border:1px solid #f5c6c0}
+/* दो बटन: अभी नहीं मिला / मिल चुका */
+.pbtn{padding:7px 11px;border-radius:9px;border:1.5px solid var(--line);background:#fff;
+  font-size:12.5px;font-weight:700;cursor:pointer;color:var(--mut);transition:.15s;white-space:nowrap}
+.pbtn:hover{border-color:var(--green)}
+.pbtn.on.due{background:var(--red-l);color:#8d2b20;border-color:#f5c6c0}
+.pbtn.on.paid{background:#e3f6e9;color:#12693a;border-color:#b6e3c6}
+.paybtns{display:flex;gap:6px;flex-wrap:wrap}
+.payrow{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 0;border-bottom:1px solid var(--line)}
+.payrow:last-child{border-bottom:0}
+.payrow .lft{min-width:150px}
+.payrow .t1{font-weight:700;font-size:15px}
+.payrow .t2{font-size:12.5px;color:var(--mut)}
+.payrow .amt{font-weight:800;font-size:17px}
+.payrow .amt.due{color:var(--red)}
+.payrow .amt.ok{color:#12693a}
+.paysum{background:var(--amber-l);border:1px solid #f2cf9a;border-radius:12px;padding:12px 15px;
+  font-size:14.5px;font-weight:700;color:#8a5400;margin-bottom:6px}
 .payline{font-size:13px;font-weight:600;margin-top:6px;color:var(--mut)}
 .payline b.ok{color:#12693a}
 .payline b.no{color:var(--red)}
@@ -246,6 +264,12 @@ tbody tr:last-child td{border-bottom:0}
             <tbody></tbody>
           </table>
         </div>
+      </div>
+      <div class="card">
+        <h2><span class="em">💵</span> पैसे का हिसाब — एक टैप में</h2>
+        <p class="sub">जिसका पैसा मिल गया उस पर <b>✅ मिल चुका</b> दबाएँ, जो बाकी है उस पर <b>⏳ अभी नहीं मिला</b> दबाएँ — हिस्ट्री अपने आप बदल जाएगी।</p>
+        <div id="paySum" class="paysum"></div>
+        <div id="payList"></div>
       </div>
       <div class="card">
         <h2><span class="em">🕒</span> हाल के रिकॉर्ड</h2>
@@ -714,7 +738,7 @@ function editRec(id){
 }
 
 /* ---------- render ---------- */
-function renderAll(){ renderStats(); renderFasl(); renderRecent(); renderHist(); renderCal(); }
+function renderAll(){ renderStats(); renderPay(); renderFasl(); renderRecent(); renderHist(); renderCal(); }
 
 function renderStats(){
   const mandi = RECS.filter(r=>r.type==="mandi").reduce((s,r)=>s+(r.total||0),0);
@@ -792,9 +816,7 @@ function renderHist(){
                      : (r.rate ? `${money(r.rate)}` : (r.kharcha ? `${money(r.kharcha)}` : "—"));
     const det = [r.party, r.khet, r.by, r.note].filter(Boolean).join(" · ") || "—";
     const p = payInfo(r);
-    const payCell = !p ? `<span class="tag j">—</span>`
-      : `<span class="tag ${p.cls}">${p.text}</span>`
-        + (p.due > 0.001 ? `<br><button class="btn btn-g btn-sm" style="margin-top:5px" data-pay="${r.id}">✅ पैसा मिल गया</button>` : "");
+    const payCell = !p ? `<span class="tag j">—</span>` : payButtons(r, p);
     return `<tr>
       <td>${fmtDate(r.date)}</td>
       <td><span class="tag ${isM?"m":"j"}">${isM?"मंडी":"जुताई"}</span></td>
@@ -821,13 +843,66 @@ function renderHist(){
     saveRecs(); renderAll();
   });
   tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editRec(b.dataset.edit));
-  /* एक टैप में "पैसा मिल गया" */
-  tb.querySelectorAll("[data-pay]").forEach(b => b.onclick = () => {
-    const r = RECS.find(x => x.id === b.dataset.pay); if(!r) return;
-    if(!confirm("पूरा पैसा मिल गया? — बाकी 0 हो जाएगा।")) return;
-    r.paid = "full"; r.received = Number(r.total) || 0;
-    saveRecs(); renderAll();
+  wirePayButtons(tb);
+}
+
+/* ---------- दो बटन: ⏳ अभी नहीं मिला / ✅ मिल चुका ---------- */
+function payButtons(r, p){
+  p = p || payInfo(r);
+  const dueOn = p.due > 0.001 ? "on" : "";
+  const paidOn = p.due <= 0.001 ? "on" : "";
+  return `<div class="paybtns" data-pb="${r.id}">
+    <button class="pbtn due ${dueOn}" data-set="due">⏳ अभी नहीं मिला</button>
+    <button class="pbtn paid ${paidOn}" data-set="paid">✅ मिल चुका</button>
+  </div>`;
+}
+function wirePayButtons(scope){
+  (scope || document).querySelectorAll("[data-pb]").forEach(wrap => {
+    const id = wrap.dataset.pb;
+    wrap.querySelectorAll("[data-set]").forEach(btn => btn.onclick = () => {
+      const r = RECS.find(x => x.id === id); if(!r) return;
+      const want = btn.dataset.set;
+      if(want === "paid"){
+        r.paid = "full"; r.received = Number(r.total) || 0;
+      } else {
+        if(r.paid === "part" && !confirm("पूरा पैसा बाकी दिखाएँ? (जो मिला था वो हट जाएगा)")) return;
+        r.paid = "due"; r.received = 0;
+      }
+      saveRecs(); renderAll();
+    });
   });
+}
+
+/* ---------- डैशबोर्ड: पैसे का हिसाब (मोबाइल के लिए आसान) ---------- */
+function renderPay(){
+  const list = RECS.filter(r => r.type === "mandi")
+    .sort((a,b) => (b.date||"").localeCompare(a.date||""));
+  const el = $("payList"), sm = $("paySum");
+  if(!list.length){
+    sm.style.display = "none";
+    el.innerHTML = `<div class="empty">अभी कोई मंडी हिसाब नहीं लिखा।</div>`;
+    return;
+  }
+  sm.style.display = "block";
+  let recv = 0, due = 0, dueN = 0;
+  list.forEach(r => { const p = payInfo(r); recv += p.recv; due += p.due; if(p.due > 0.001) dueN++; });
+  sm.innerHTML = `✅ मिल चुका <b>${money(recv)}</b> &nbsp;·&nbsp; ⏳ बाकी <b>${money(due)}</b>`
+    + (dueN ? ` &nbsp;·&nbsp; ${dueN} बिक्री का पैसा बाकी है` : " 🎉 सारा पैसा मिल गया!");
+  el.innerHTML = list.map(r => {
+    const p = payInfo(r);
+    return `<div class="payrow">
+      <div class="lft">
+        <div class="t1">${r.fasl || "—"}</div>
+        <div class="t2">${fmtDate(r.date)}${r.party ? " · " + r.party : ""}
+          · ${wtxt(r.vajan)} ${r.unit || ""}</div>
+      </div>
+      <div class="amt ${p.due > 0.001 ? "due" : "ok"}">${money(r.total)}
+        <div class="t2">${p.due > 0.001 ? "बाकी " + money(p.due) : "पूरा मिल गया"}</div>
+      </div>
+      ${payButtons(r, p)}
+    </div>`;
+  }).join("");
+  wirePayButtons(el);
 }
 ["fType","fMonth","fFasl","fSearch","fPay"].forEach(id => $(id).addEventListener("input", renderHist));
 $("fPay").addEventListener("change", renderHist);
