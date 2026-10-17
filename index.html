@@ -422,6 +422,7 @@ const KAAM = ["जुताई (मिट्टी पलटना)","हल च
 
 const $ = (id) => document.getElementById(id);
 const LS_USERS = "kisan_users_v1";
+const LS_SESSION = "kisan_session_v1";   /* कौन लॉगिन है — ताकि बार-बार लॉगिन न माँगे */
 const LS_KEY = (u) => "kisan_recs_v1_" + u;
 const money = (n) => "₹" + (Math.round((Number(n)||0) * 100) / 100).toLocaleString("en-IN", {maximumFractionDigits:2});
 const num = (v) => { const x = parseFloat(v); return isFinite(x) ? x : 0; };
@@ -488,6 +489,7 @@ $("formLogin").onsubmit = async (e) => {
 function enter(u){
   USER = u;
   const users = getUsers();
+  try { localStorage.setItem(LS_SESSION, u); } catch(e){}   /* session याद रखो */
   $("whoName").textContent = (users[u] && users[u].name ? users[u].name : u) + (users[u] && users[u].village ? " · " + users[u].village : "");
   RECS = loadRecs();
   $("login").classList.add("hide"); $("app").classList.remove("hide");
@@ -495,6 +497,7 @@ function enter(u){
 }
 $("btnLogout").onclick = () => {
   USER = null; RECS = [];
+  try { localStorage.removeItem(LS_SESSION); } catch(e){}
   $("app").classList.add("hide"); $("login").classList.remove("hide");
   $("lPass").value = ""; $("loginMsg").className = "msg";
 };
@@ -782,6 +785,15 @@ $("btnClearAll").onclick = () => {
 buildMonths();
 $("mDate").value = today2026(); $("jDate").value = today2026();
 calcMandi(); calcJut();
+/* पहले से लॉगिन हो? — सीधे अंदर भेजो, दोबारा पासवर्ड मत माँगो */
+(function autoLogin(){
+  let s = null;
+  try { s = localStorage.getItem(LS_SESSION); } catch(e){}
+  if(s && getUsers()[s]){
+    $("lUser").value = s;
+    enter(s);
+  }
+})();
 </script>
 </body>
 </html>
