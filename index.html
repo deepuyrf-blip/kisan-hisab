@@ -159,10 +159,12 @@ tbody tr:last-child td{border-bottom:0}
     </div>
 
     <form id="formLogin" autocomplete="on">
-      <label for="lUser">उपयोगकर्ता नाम (Username) <span class="req">*</span></label>
-      <input id="lUser" autocomplete="username" placeholder="जैसे: raju123" required>
-      <label for="lPass">पासवर्ड <span class="req">*</span></label>
-      <input id="lPass" type="password" autocomplete="current-password" placeholder="आपका पासवर्ड" required>
+      <label for="lPhone">मोबाइल नंबर <span class="req">*</span></label>
+      <input id="lPhone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel"
+             placeholder="10 अंक — जैसे 9876543210" required>
+      <label for="lPin">4 अंकों का PIN <span class="req">*</span></label>
+      <input id="lPin" type="password" inputmode="numeric" maxlength="4" autocomplete="current-password"
+             placeholder="••••" required>
       <div style="height:18px"></div>
       <button class="btn btn-p" type="submit">🔓 लॉगिन करें</button>
       <div class="msg" id="loginMsg"></div>
@@ -173,18 +175,24 @@ tbody tr:last-child td{border-bottom:0}
       <input id="rName" placeholder="जैसे: राजू यादव" required>
       <label for="rVillage">गाँव / तहसील</label>
       <input id="rVillage" placeholder="जैसे: रामपुर, सीतापुर">
-      <label for="rUser">उपयोगकर्ता नाम (Username) <span class="req">*</span></label>
-      <input id="rUser" autocomplete="username" placeholder="अंग्रेज़ी में, जैसे: raju123" required>
-      <label for="rPass">पासवर्ड <span class="req">*</span></label>
-      <input id="rPass" type="password" autocomplete="new-password" placeholder="कम से कम 4 अक्षर" required>
-      <label for="rPass2">पासवर्ड दोबारा <span class="req">*</span></label>
-      <input id="rPass2" type="password" autocomplete="new-password" placeholder="वही पासवर्ड फिर लिखें" required>
+      <label for="rPhone">मोबाइल नंबर <span class="req">*</span></label>
+      <input id="rPhone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel"
+             placeholder="10 अंक — यही आपका लॉगिन होगा" required>
+      <label for="rPin">4 अंकों का PIN <span class="req">*</span></label>
+      <input id="rPin" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"
+             placeholder="•••• (4 अंक)" required>
+      <label for="rPin2">PIN दोबारा <span class="req">*</span></label>
+      <input id="rPin2" type="password" inputmode="numeric" maxlength="4" autocomplete="new-password"
+             placeholder="वही 4 अंक फिर लिखें" required>
+      <label for="rOld">पुराना उपयोगकर्ता नाम (सिर्फ़ अगर पहले बनाया था)</label>
+      <input id="rOld" placeholder="जैसे: deepi — पुराना हिसाब यहाँ आ जाएगा">
       <div style="height:18px"></div>
       <button class="btn btn-p" type="submit">✅ खाता बनाएँ</button>
       <div class="msg" id="regMsg"></div>
     </form>
 
-    <p class="hint">आपका हिसाब आपके ही मोबाइल/कंप्यूटर में सुरक्षित रहता है।</p>
+    <p class="hint">🔒 मोबाइल नंबर + PIN से लॉगिन — न SMS, न OTP, न कोई झंझट।<br>
+      आपका हिसाब आपके ही मोबाइल/कंप्यूटर में सुरक्षित रहता है।</p>
   </div>
 </div>
 
@@ -460,37 +468,62 @@ $("tabReg").onclick = () => {
   $("formReg").classList.remove("hide"); $("formLogin").classList.add("hide");
 };
 
+const onlyDigits = (v) => (v || "").replace(/\D/g, "");
+const okMobile = (v) => /^[6-9]\d{9}$/.test(v);
+
 $("formReg").onsubmit = async (e) => {
   e.preventDefault();
   const name = $("rName").value.trim(), village = $("rVillage").value.trim();
-  const u = $("rUser").value.trim().toLowerCase(), p = $("rPass").value, p2 = $("rPass2").value;
+  const u = onlyDigits($("rPhone").value), p = onlyDigits($("rPin").value), p2 = onlyDigits($("rPin2").value);
   const m = $("regMsg");
   if(!name) return showMsg(m, "कृपया अपना नाम लिखें।");
-  if(!/^[a-z0-9_.]{3,20}$/.test(u)) return showMsg(m, "उपयोगकर्ता नाम अंग्रेज़ी में, 3–20 अक्षर (a-z, 0-9, _ . ) होना चाहिए।");
-  if(p.length < 4) return showMsg(m, "पासवर्ड कम से कम 4 अक्षर का होना चाहिए।");
-  if(p !== p2) return showMsg(m, "दोनों पासवर्ड एक जैसे नहीं हैं।");
+  if(!okMobile(u)) return showMsg(m, "मोबाइल नंबर 10 अंकों का होना चाहिए और 6/7/8/9 से शुरू होना चाहिए।");
+  if(p.length !== 4) return showMsg(m, "PIN ठीक 4 अंकों का होना चाहिए।");
+  if(p !== p2) return showMsg(m, "दोनों PIN एक जैसे नहीं हैं।");
   const users = getUsers();
-  if(users[u]) return showMsg(m, "यह उपयोगकर्ता नाम पहले से बना है — दूसरा चुनें।");
+  if(users[u]) return showMsg(m, "यह मोबाइल नंबर पहले से बना है — 'लॉगिन करें' दबाएँ।");
   users[u] = { name, village, pass: await hash(p), made: new Date().toISOString() };
   saveUsers(users);
-  showMsg(m, "✅ खाता बन गया! अब लॉगिन करें।", true);
-  setTimeout(() => { $("tabLogin").click(); $("lUser").value = u; $("lPass").focus(); }, 900);
+  let extra = "";
+  /* पुराने username वाला हिसाब यहाँ ले आओ */
+  const legacy = ($("rOld").value || "").trim().toLowerCase();
+  if(legacy && legacy !== u){
+    try{
+      const old = JSON.parse(localStorage.getItem(LS_KEY(legacy)) || "[]");
+      if(Array.isArray(old) && old.length){
+        localStorage.setItem(LS_KEY(u), JSON.stringify(old));
+        extra = ` पुराने '${legacy}' का ${old.length} रिकॉर्ड भी ले आए।`;
+      } else extra = ` '${legacy}' का कोई पुराना रिकॉर्ड नहीं मिला।`;
+    }catch(err){}
+  }
+  showMsg(m, "✅ खाता बन गया! अब लॉगिन करें।" + extra, true);
+  setTimeout(() => { $("tabLogin").click(); $("lPhone").value = u; $("lPin").focus(); }, 1100);
 };
 
 $("formLogin").onsubmit = async (e) => {
   e.preventDefault();
-  const u = $("lUser").value.trim().toLowerCase(), p = $("lPass").value, m = $("loginMsg");
+  const u = onlyDigits($("lPhone").value), p = onlyDigits($("lPin").value), m = $("loginMsg");
   const users = getUsers();
-  if(!users[u]) return showMsg(m, "यह उपयोगकर्ता नाम नहीं मिला — पहले 'नया खाता बनाएँ' करें।");
-  if(users[u].pass !== await hash(p)) return showMsg(m, "पासवर्ड ग़लत है। दोबारा कोशिश करें।");
+  if(!okMobile(u)) return showMsg(m, "मोबाइल नंबर 10 अंकों का लिखें।");
+  if(!users[u]) return showMsg(m, "यह मोबाइल नंबर दर्ज नहीं है — पहले 'नया खाता बनाएँ' करें।");
+  if(users[u].pass !== await hash(p)) return showMsg(m, "PIN ग़लत है। दोबारा कोशिश करें।");
   enter(u);
 };
+/* PIN box में सिर्फ़ अंक */
+["lPin","rPin","rPin2"].forEach(id => $(id).addEventListener("input", () => {
+  $(id).value = onlyDigits($(id).value).slice(0, 4);
+}));
+["lPhone","rPhone"].forEach(id => $(id).addEventListener("input", () => {
+  $(id).value = onlyDigits($(id).value).slice(0, 10);
+}));
 
 function enter(u){
   USER = u;
   const users = getUsers();
   try { localStorage.setItem(LS_SESSION, u); } catch(e){}   /* session याद रखो */
-  $("whoName").textContent = (users[u] && users[u].name ? users[u].name : u) + (users[u] && users[u].village ? " · " + users[u].village : "");
+  const nm = users[u] && users[u].name ? users[u].name : "किसान";
+  const vil = users[u] && users[u].village ? " · " + users[u].village : "";
+  $("whoName").textContent = nm + vil + (u.length === 10 ? " · 📱 " + u : "");
   RECS = loadRecs();
   $("login").classList.add("hide"); $("app").classList.remove("hide");
   fillLists(); buildMonths(); setDefaults(); renderAll();
@@ -499,7 +532,7 @@ $("btnLogout").onclick = () => {
   USER = null; RECS = [];
   try { localStorage.removeItem(LS_SESSION); } catch(e){}
   $("app").classList.add("hide"); $("login").classList.remove("hide");
-  $("lPass").value = ""; $("loginMsg").className = "msg";
+  $("lPin").value = ""; $("loginMsg").className = "msg";
 };
 
 /* ---------- dropdown lists ---------- */
@@ -790,7 +823,7 @@ calcMandi(); calcJut();
   let s = null;
   try { s = localStorage.getItem(LS_SESSION); } catch(e){}
   if(s && getUsers()[s]){
-    $("lUser").value = s;
+    $("lPhone").value = s;
     enter(s);
   }
 })();
