@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>किसान हिसाब — मंडी और जुताई का पूरा हिसाब</title>
+<meta name="description" content="किसान अपनी मंडी की फसल, वज़न, भाव और जुताई का हिसाब आसानी से सेव कर सकते हैं — हर साल, हर फसल का पूरा रिकॉर्ड।" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#1f7a3f; --green-d:#155c2e; --green-l:#e8f5ec; --green-b:#b9e0c6;
+  --amber:#e08a00; --amber-l:#fff4e0;
+  --ink:#17251c; --mut:#5d6f63; --line:#dfe8e1; --bg:#f5f8f5; --card:#ffffff;
+  --red:#c0392b; --red-l:#fdecea;
+  --shadow:0 2px 4px rgba(23,37,28,.05), 0 10px 28px -12px rgba(23,37,28,.18);
+  --r:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:"Noto Sans Devanagari",Inter,system-ui,sans-serif;
+  line-height:1.65;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font-family:inherit;font-size:15px}
+a{color:var(--green);text-decoration:none}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+.hide{display:none !important}
+
+/* ---------- LOGIN ---------- */
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:linear-gradient(160deg,#e8f5ec 0%,#f5f8f5 55%,#fff4e0 100%)}
+.loginbox{background:var(--card);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow);
+  width:100%;max-width:430px;padding:30px 26px}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.brand .ic{width:52px;height:52px;border-radius:15px;background:linear-gradient(150deg,var(--green),#2fa35a);
+  display:grid;place-items:center;font-size:26px;box-shadow:0 8px 20px -8px rgba(31,122,63,.7)}
+.brand h1{font-size:23px;font-weight:800;line-height:1.2}
+.brand p{font-size:13px;color:var(--mut)}
+.tabs{display:flex;gap:6px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:5px;margin:22px 0 18px}
+.tabs button{flex:1;border:0;background:transparent;padding:10px;border-radius:9px;font-weight:600;color:var(--mut);cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--green-d);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+label{display:block;font-size:13.5px;font-weight:600;margin:14px 0 6px;color:#33463a}
+label .req{color:var(--red)}
+input,select,textarea{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;
+  background:#fff;outline:none;transition:.15s;color:var(--ink)}
+input:focus,select:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(31,122,63,.12)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:0;cursor:pointer;
+  font-weight:700;padding:13px 20px;border-radius:12px;transition:.15s;font-size:15px}
+.btn-p{background:var(--green);color:#fff;width:100%}
+.btn-p:hover{background:var(--green-d)}
+.btn-a{background:var(--amber);color:#fff}
+.btn-g{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.btn-g:hover{border-color:var(--green);color:var(--green-d)}
+.btn-sm{padding:9px 14px;font-size:13.5px;border-radius:10px}
+.btn-danger{background:var(--red-l);color:var(--red);border:1.5px solid #f5c6c0}
+.msg{border-radius:11px;padding:11px 14px;font-size:14px;margin-top:14px;display:none}
+.msg.err{display:block;background:var(--red-l);color:#8d2b20;border:1px solid #f5c6c0}
+.msg.ok{display:block;background:var(--green-l);color:var(--green-d);border:1px solid var(--green-b)}
+.hint{font-size:12.5px;color:var(--mut);margin-top:10px;text-align:center}
+
+/* ---------- APP ---------- */
+header.top{background:linear-gradient(150deg,var(--green-d),var(--green));color:#fff;
+  padding:16px 0 18px;box-shadow:0 6px 18px -10px rgba(31,122,63,.8);position:sticky;top:0;z-index:20}
+.topin{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.topin .who{font-size:13.5px;opacity:.92}
+.topin .who b{font-size:16px;display:block;font-weight:700}
+.topbtns{display:flex;gap:8px;flex-wrap:wrap}
+.top .btn-g{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.35);color:#fff}
+.top .btn-g:hover{background:rgba(255,255,255,.28);color:#fff;border-color:#fff}
+nav.tabs2{display:flex;gap:6px;overflow-x:auto;padding:14px 0 0;scrollbar-width:none}
+nav.tabs2::-webkit-scrollbar{display:none}
+nav.tabs2 button{white-space:nowrap;border:1.5px solid var(--line);background:#fff;color:var(--mut);
+  padding:10px 16px;border-radius:11px;font-weight:600;cursor:pointer;font-size:14px}
+nav.tabs2 button.on{background:var(--green);border-color:var(--green);color:#fff}
+main{padding:22px 0 70px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);
+  padding:22px;margin-bottom:18px}
+.card h2{font-size:19px;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:9px}
+.card h2 .em{font-size:22px}
+.card .sub{font-size:13.5px;color:var(--mut);margin-bottom:18px}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:720px){.g3{grid-template-columns:1fr 1fr}.g2{grid-template-columns:1fr}}
+@media(max-width:520px){.g3,.g2{grid-template-columns:1fr}}
+
+/* total box */
+.totalbox{background:var(--green-l);border:2px dashed var(--green-b);border-radius:13px;padding:16px;
+  margin-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.totalbox .lbl{font-size:13.5px;font-weight:600;color:var(--green-d)}
+.totalbox .val{font-size:27px;font-weight:800;color:var(--green-d);letter-spacing:-.02em}
+.totalbox.jut{background:var(--amber-l);border-color:#f2cf9a}
+.totalbox.jut .lbl,.totalbox.jut .val{color:#8a5400}
+.formula{font-size:12.5px;color:var(--mut);margin-top:8px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:820px){.stats{grid-template-columns:1fr 1fr}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;box-shadow:var(--shadow)}
+.stat .k{font-size:12.5px;color:var(--mut);font-weight:600}
+.stat .v{font-size:22px;font-weight:800;margin-top:4px;letter-spacing:-.02em}
+.stat.g .v{color:var(--green-d)} .stat.a .v{color:#8a5400} .stat.n .v{color:var(--ink)}
+
+/* table */
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:640px}
+th,td{padding:11px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{background:var(--bg);font-size:12.5px;font-weight:700;color:var(--mut);position:sticky;top:0}
+th:first-child,td:first-child{text-align:left}
+tbody tr:hover{background:#fafdfb}
+tbody tr:last-child td{border-bottom:0}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px}
+.tag.m{background:var(--green-l);color:var(--green-d)}
+.tag.j{background:var(--amber-l);color:#8a5400}
+.empty{text-align:center;color:var(--mut);padding:34px 10px;font-size:14.5px}
+.filters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+@media(max-width:820px){.filters{grid-template-columns:1fr 1fr}}
+.tfoot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px}
+.tfoot .sum{font-size:14.5px;font-weight:700}
+.tfoot .sum b{color:var(--green-d)}
+
+/* calendar */
+.calgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:900px){.calgrid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:640px){.calgrid{grid-template-columns:repeat(2,1fr)}}
+.month{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;box-shadow:var(--shadow)}
+.month h4{font-size:13.5px;font-weight:700;text-align:center;margin-bottom:8px;color:var(--green-d)}
+.dow,.days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dow span{font-size:10.5px;text-align:center;color:var(--mut);font-weight:600}
+.days span{aspect-ratio:1;display:grid;place-items:center;font-size:11.5px;border-radius:6px;cursor:default;color:#42564a}
+.days span.mark{background:var(--green);color:#fff;font-weight:700;cursor:pointer}
+.days span.today{outline:2px solid var(--amber)}
+.days span.off{color:#c3cec6}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin-bottom:14px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;margin-right:5px;vertical-align:-1px}
+
+.rowbtns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.footer{text-align:center;color:var(--mut);font-size:12.5px;padding:26px 0}
+.big-ok{background:var(--green-l);border:1px solid var(--green-b);color:var(--green-d);border-radius:12px;
+  padding:12px 15px;font-size:14px;font-weight:600;margin-top:14px;display:none}
+.big-ok.on{display:block}
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="login">
+  <div class="loginbox">
+    <div class="brand">
+      <div class="ic">🌾</div>
+      <div>
+        <h1>किसान हिसाब</h1>
+        <p>मंडी और जुताई का पूरा हिसाब — एक जगह</p>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button id="tabLogin" class="on" type="button">लॉगिन करें</button>
+      <button id="tabReg" type="button">नया खाता बनाएँ</button>
+    </div>
+
+    <form id="formLogin" autocomplete="on">
+      <label for="lUser">उपयोगकर्ता नाम (Username) <span class="req">*</span></label>
+      <input id="lUser" autocomplete="username" placeholder="जैसे: raju123" required>
+      <label for="lPass">पासवर्ड <span class="req">*</span></label>
+      <input id="lPass" type="password" autocomplete="current-password" placeholder="आपका पासवर्ड" required>
+      <div style="height:18px"></div>
+      <button class="btn btn-p" type="submit">🔓 लॉगिन करें</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+
+    <form id="formReg" class="hide" autocomplete="on">
+      <label for="rName">आपका नाम <span class="req">*</span></label>
+      <input id="rName" placeholder="जैसे: राजू यादव" required>
+      <label for="rVillage">गाँव / तहसील</label>
+      <input id="rVillage" placeholder="जैसे: रामपुर, सीतापुर">
+      <label for="rUser">उपयोगकर्ता नाम (Username) <span class="req">*</span></label>
+      <input id="rUser" autocomplete="username" placeholder="अंग्रेज़ी में, जैसे: raju123" required>
+      <label for="rPass">पासवर्ड <span class="req">*</span></label>
+      <input id="rPass" type="password" autocomplete="new-password" placeholder="कम से कम 4 अक्षर" required>
+      <label for="rPass2">पासवर्ड दोबारा <span class="req">*</span></label>
+      <input id="rPass2" type="password" autocomplete="new-password" placeholder="वही पासवर्ड फिर लिखें" required>
+      <div style="height:18px"></div>
+      <button class="btn btn-p" type="submit">✅ खाता बनाएँ</button>
+      <div class="msg" id="regMsg"></div>
+    </form>
+
+    <p class="hint">आपका हिसाब आपके ही मोबाइल/कंप्यूटर में सुरक्षित रहता है।</p>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hide">
+  <header class="top">
+    <div class="wrap">
+      <div class="topin">
+        <div class="who">नमस्ते 🙏<b id="whoName">किसान</b></div>
+        <div class="topbtns">
+          <button class="btn btn-g btn-sm" id="btnExport">⬇️ CSV डाउनलोड</button>
+          <button class="btn btn-g btn-sm" id="btnLogout">🚪 लॉगआउट</button>
+        </div>
+      </div>
+      <nav class="tabs2" id="navTabs">
+        <button data-t="dash" class="on">📊 डैशबोर्ड</button>
+        <button data-t="mandi">🌾 मंडी हिसाब</button>
+        <button data-t="jutaai">🚜 जुताई हिसाब</button>
+        <button data-t="cal">📅 2026 कैलेंडर</button>
+        <button data-t="hist">📚 हिस्ट्री</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+
+    <!-- DASHBOARD -->
+    <section id="p-dash">
+      <div class="stats">
+        <div class="stat g"><div class="k">मंडी से कुल आय</div><div class="v" id="sMandi">₹0</div></div>
+        <div class="stat a"><div class="k">जुताई का कुल खर्च</div><div class="v" id="sJut">₹0</div></div>
+        <div class="stat n"><div class="k">शुद्ध लाभ (आय − खर्च)</div><div class="v" id="sNet">₹0</div></div>
+        <div class="stat n"><div class="k">कुल रिकॉर्ड</div><div class="v" id="sCount">0</div></div>
+      </div>
+      <div class="card">
+        <h2><span class="em">📈</span> फसल के हिसाब से कुल बिक्री</h2>
+        <p class="sub">आपने कौन-सी फसल कितने में बेची — पूरा जोड़।</p>
+        <div class="tblwrap">
+          <table id="faslTable">
+            <thead><tr><th>फसल</th><th>कुल वज़न</th><th>औसत भाव</th><th>कुल रकम</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2><span class="em">🕒</span> हाल के रिकॉर्ड</h2>
+        <p class="sub">आख़िरी 8 एंट्री।</p>
+        <div class="tblwrap">
+          <table id="recentTable">
+            <thead><tr><th>दिनांक</th><th>प्रकार</th><th>ब्यौरा</th><th>रकम</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- MANDI -->
+    <section id="p-mandi" class="hide">
+      <div class="card">
+        <h2><span class="em">🌾</span> मंडी का हिसाब भरें</h2>
+        <p class="sub">दिनांक, फसल, वज़न और भाव भरें — कुल रकम अपने आप निकल आएगी।</p>
+        <div class="grid g3">
+          <div>
+            <label for="mDate">दिनांक <span class="req">*</span></label>
+            <input id="mDate" type="date" min="2026-01-01" max="2026-12-31" required>
+          </div>
+          <div>
+            <label for="mFasl">फसल का नाम <span class="req">*</span></label>
+            <input id="mFasl" list="faslList" placeholder="फसल चुनें या लिखें" required>
+            <datalist id="faslList"></datalist>
+          </div>
+          <div>
+            <label for="mUnit">वज़न की इकाई</label>
+            <select id="mUnit">
+              <option value="क्विंटल">क्विंटल (100 किलो)</option>
+              <option value="किलो">किलो</option>
+              <option value="टन">टन</option>
+              <option value="मन">मन (40 किलो)</option>
+              <option value="बोरा">बोरा</option>
+            </select>
+          </div>
+          <div>
+            <label for="mVajan">वज़न (कितना बेचा) <span class="req">*</span></label>
+            <input id="mVajan" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 12.5" required>
+          </div>
+          <div>
+            <label for="mBhav">भाव / रेट (प्रति इकाई) <span class="req">*</span></label>
+            <input id="mBhav" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 2400" required>
+          </div>
+          <div>
+            <label for="mParty">मंडी / व्यापारी का नाम</label>
+            <input id="mParty" placeholder="जैसे: श्री राम आढ़त">
+          </div>
+        </div>
+        <label for="mNote">टिप्पणी (मन में हो तो)</label>
+        <input id="mNote" placeholder="जैसे: नमी ज़्यादा थी, कटौती हुई">
+
+        <div class="totalbox">
+          <div>
+            <div class="lbl">कुल रकम (वज़न × भाव)</div>
+            <div class="formula" id="mFormula">—</div>
+          </div>
+          <div class="val" id="mTotal">₹0</div>
+        </div>
+
+        <div class="rowbtns">
+          <button class="btn btn-p" id="mSave" style="width:auto">💾 मंडी हिसाब सेव करें</button>
+          <button class="btn btn-g" id="mClear">🔄 फ़ॉर्म साफ़ करें</button>
+        </div>
+        <div class="big-ok" id="mOk">✅ हिसाब सेव हो गया!</div>
+      </div>
+    </section>
+
+    <!-- JUTAAI -->
+    <section id="p-jutaai" class="hide">
+      <div class="card">
+        <h2><span class="em">🚜</span> जुताई / खेती का हिसाब भरें</h2>
+        <p class="sub">जुताई, बुवाई, सिंचाई, कटाई — हर काम का अलग हिसाब।</p>
+        <div class="grid g3">
+          <div>
+            <label for="jDate">दिनांक <span class="req">*</span></label>
+            <input id="jDate" type="date" min="2026-01-01" max="2026-12-31" required>
+          </div>
+          <div>
+            <label for="jKaam">काम का नाम <span class="req">*</span></label>
+            <input id="jKaam" list="kaamList" placeholder="काम चुनें या लिखें" required>
+            <datalist id="kaamList"></datalist>
+          </div>
+          <div>
+            <label for="jKhet">खेत / जगह</label>
+            <input id="jKhet" placeholder="जैसे: नहर वाला खेत">
+          </div>
+          <div>
+            <label for="jFasl2">फसल</label>
+            <input id="jFasl2" list="faslList" placeholder="किस फसल का काम है">
+          </div>
+          <div>
+            <label for="jRate">दर / किराया (प्रति एकड़ या घंटा)</label>
+            <input id="jRate" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 1200">
+          </div>
+          <div>
+            <label for="jQty">कितना (एकड़ / घंटा / बीघा)</label>
+            <input id="jQty" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 2">
+          </div>
+          <div>
+            <label for="jKharcha">सीधा खर्च (डीज़ल, मज़दूरी…)</label>
+            <input id="jKharcha" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 500">
+          </div>
+          <div>
+            <label for="jBy">किसने किया</label>
+            <input id="jBy" placeholder="जैसे: आकाश (ट्रैक्टर वाला)">
+          </div>
+          <div>
+            <label for="jNote">टिप्पणी</label>
+            <input id="jNote" placeholder="जैसे: 2 बार जुताई की">
+          </div>
+        </div>
+        <label for="jNote2" style="display:none"></label>
+
+        <div class="totalbox jut">
+          <div>
+            <div class="lbl">कुल खर्च (दर × मात्रा + सीधा खर्च)</div>
+            <div class="formula" id="jFormula">—</div>
+          </div>
+          <div class="val" id="jTotal">₹0</div>
+        </div>
+
+        <div class="rowbtns">
+          <button class="btn btn-a" id="jSave">💾 जुताई हिसाब सेव करें</button>
+          <button class="btn btn-g" id="jClear">🔄 फ़ॉर्म साफ़ करें</button>
+        </div>
+        <div class="big-ok" id="jOk">✅ हिसाब सेव हो गया!</div>
+      </div>
+    </section>
+
+    <!-- CALENDAR -->
+    <section id="p-cal" class="hide">
+      <div class="card">
+        <h2><span class="em">📅</span> साल 2026 का कैलेंडर</h2>
+        <p class="sub">जिस दिन हिसाब लिखा है, वह दिन हरा दिखता है। दिन पर टैप करके उस दिन का हिसाब देखें।</p>
+        <div class="legend">
+          <span><i style="background:var(--green)"></i> हिसाब लिखा है</span>
+          <span><i style="background:#fff;outline:2px solid var(--amber);outline-offset:-2px"></i> आज</span>
+        </div>
+        <div class="calgrid" id="calGrid"></div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="p-hist" class="hide">
+      <div class="card">
+        <h2><span class="em">📚</span> पूरी हिस्ट्री</h2>
+        <p class="sub">महीना, फसल या प्रकार से छाँटें। जोड़ नीचे अपने आप दिखेगा।</p>
+        <div class="filters">
+          <select id="fType"><option value="">सब प्रकार</option><option value="mandi">मंडी</option><option value="jutaai">जुताई</option></select>
+          <select id="fMonth"></select>
+          <input id="fFasl" list="faslList" placeholder="फसल से छाँटें">
+          <input id="fSearch" placeholder="कुछ भी खोजें…">
+        </div>
+        <div class="tblwrap">
+          <table id="histTable">
+            <thead><tr>
+              <th>दिनांक</th><th>प्रकार</th><th>फसल / काम</th><th>वज़न</th><th>भाव</th><th>रकम</th><th>ब्यौरा</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="tfoot">
+          <div class="sum" id="histSum">—</div>
+          <button class="btn btn-g btn-sm" id="btnClearAll">🗑️ सारा हिसाब मिटाएँ</button>
+        </div>
+      </div>
+    </section>
+
+    <p class="footer">किसान हिसाब · आपका डेटा आपके ही डिवाइस में सेव रहता है · साल 2026</p>
+  </main>
+</div>
+
+<script>
+/* ============================================================
+   किसान हिसाब — सारा डेटा इसी डिवाइस में सेव होता है (localStorage)
+   ============================================================ */
+const FASLEIN = ["गेहूं","धान (चावल)","मक्का","जौ","चना","अरहर (तूर)","मूंग","उड़द","मसूर","सरसों","राई","मूंगफली","तिल","सोयाबीन","सूरजमुखी","अलसी","कुसुम","गन्ना","कपास","जूट","बाजरा","ज्वार","रागी (मंडुआ)","कोदो","छोटा चना","मटर","राजमा","लोबिया","भुट्टा","आलू","प्याज","लहसुन","अदरक","हल्दी","मिर्च","टमाटर","बैंगन","भिंडी","गोभी","फूलगोभी","बंदगोभी","गाजर","मूली","चुकंदर","पालक","मेथी","धनिया","मेथी","खीरा","ककड़ी","कद्दू","लौकी","तुरई","करेला","परवल","सेम","अरबी","शकरकंद","तरबूज","खरबूजा","आम","केला","अमरूद","नींबू","संतरा","मौसंबी","बेर","अनार","अंगूर","पपीता","चीकू","नारियल","सुपारी","इलायची","काली मिर्च","लौंग","तेजपत्ता","अमचूर","मेंथा","सौंफ","जीरा","धनिया बीज","खसखस","इसबगोल","ग्वार","ढैंचा","बरसीम","लूसर्न","हरी मटर","शिमला मिर्च","मशरूम","स्ट्रॉबेरी","ड्रैगन फ्रूट"];
+const KAAM = ["जुताई (मिट्टी पलटना)","हल चलाना","कल्टीवेटर","रोटावेटर","बुवाई","बीज डालना","निराई-गुड़ाई","खरपतवार निकालना","सिंचाई (पानी देना)","नहर का पानी","बोरिंग/ट्यूबवेल","डीज़ल भरना","खाद डालना","यूरिया डालना","डीएपी डालना","गोबर की खाद","कीटनाशक छिड़काव","दवा छिड़काव","कटाई","मड़ाई (थ्रेशिंग)","भूसा बनाना","बोझा ढोना","ट्रैक्टर किराया","ट्रॉली किराया","मज़दूरी","खेत की तैयारी","मेड़ बनाना","तारबंदी","पशु चराना"];
+
+const $ = (id) => document.getElementById(id);
+const LS_USERS = "kisan_users_v1";
+const LS_KEY = (u) => "kisan_recs_v1_" + u;
+const money = (n) => "₹" + (Math.round((Number(n)||0) * 100) / 100).toLocaleString("en-IN", {maximumFractionDigits:2});
+const num = (v) => { const x = parseFloat(v); return isFinite(x) ? x : 0; };
+const HN_MONTH = ["जनवरी","फ़रवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];
+const HN_DOW = ["रवि","सोम","मंगल","बुध","गुरु","शुक्र","शनि"];
+const fmtDate = (iso) => { const [y,m,d] = (iso||"").split("-"); return d ? `${d}-${m}-${y}` : iso; };
+
+let USER = null, RECS = [];
+
+/* ---------- storage ---------- */
+const getUsers = () => JSON.parse(localStorage.getItem(LS_USERS) || "{}");
+const saveUsers = (u) => localStorage.setItem(LS_USERS, JSON.stringify(u));
+const loadRecs = () => JSON.parse(localStorage.getItem(LS_KEY(USER)) || "[]");
+const saveRecs = () => localStorage.setItem(LS_KEY(USER), JSON.stringify(RECS));
+
+async function hash(txt){
+  try{
+    const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("kisan::" + txt));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,"0")).join("");
+  }catch(e){ return "p:" + txt; }
+}
+function showMsg(el, text, ok){ el.className = "msg " + (ok ? "ok" : "err"); el.textContent = text; }
+
+/* ---------- login / register ---------- */
+$("tabLogin").onclick = () => {
+  $("tabLogin").classList.add("on"); $("tabReg").classList.remove("on");
+  $("formLogin").classList.remove("hide"); $("formReg").classList.add("hide");
+};
+$("tabReg").onclick = () => {
+  $("tabReg").classList.add("on"); $("tabLogin").classList.remove("on");
+  $("formReg").classList.remove("hide"); $("formLogin").classList.add("hide");
+};
+
+$("formReg").onsubmit = async (e) => {
+  e.preventDefault();
+  const name = $("rName").value.trim(), village = $("rVillage").value.trim();
+  const u = $("rUser").value.trim().toLowerCase(), p = $("rPass").value, p2 = $("rPass2").value;
+  const m = $("regMsg");
+  if(!name) return showMsg(m, "कृपया अपना नाम लिखें।");
+  if(!/^[a-z0-9_.]{3,20}$/.test(u)) return showMsg(m, "उपयोगकर्ता नाम अंग्रेज़ी में, 3–20 अक्षर (a-z, 0-9, _ . ) होना चाहिए।");
+  if(p.length < 4) return showMsg(m, "पासवर्ड कम से कम 4 अक्षर का होना चाहिए।");
+  if(p !== p2) return showMsg(m, "दोनों पासवर्ड एक जैसे नहीं हैं।");
+  const users = getUsers();
+  if(users[u]) return showMsg(m, "यह उपयोगकर्ता नाम पहले से बना है — दूसरा चुनें।");
+  users[u] = { name, village, pass: await hash(p), made: new Date().toISOString() };
+  saveUsers(users);
+  showMsg(m, "✅ खाता बन गया! अब लॉगिन करें।", true);
+  setTimeout(() => { $("tabLogin").click(); $("lUser").value = u; $("lPass").focus(); }, 900);
+};
+
+$("formLogin").onsubmit = async (e) => {
+  e.preventDefault();
+  const u = $("lUser").value.trim().toLowerCase(), p = $("lPass").value, m = $("loginMsg");
+  const users = getUsers();
+  if(!users[u]) return showMsg(m, "यह उपयोगकर्ता नाम नहीं मिला — पहले 'नया खाता बनाएँ' करें।");
+  if(users[u].pass !== await hash(p)) return showMsg(m, "पासवर्ड ग़लत है। दोबारा कोशिश करें।");
+  enter(u);
+};
+
+function enter(u){
+  USER = u;
+  const users = getUsers();
+  $("whoName").textContent = (users[u] && users[u].name ? users[u].name : u) + (users[u] && users[u].village ? " · " + users[u].village : "");
+  RECS = loadRecs();
+  $("login").classList.add("hide"); $("app").classList.remove("hide");
+  fillLists(); buildMonths(); setDefaults(); renderAll();
+}
+$("btnLogout").onclick = () => {
+  USER = null; RECS = [];
+  $("app").classList.add("hide"); $("login").classList.remove("hide");
+  $("lPass").value = ""; $("loginMsg").className = "msg";
+};
+
+/* ---------- dropdown lists ---------- */
+function fillLists(){
+  $("faslList").innerHTML = FASLEIN.map(f => `<option value="${f}"></option>`).join("");
+  $("kaamList").innerHTML = KAAM.map(k => `<option value="${k}"></option>`).join("");
+  $("fMonth").innerHTML = `<option value="">सब महीने</option>` +
+    HN_MONTH.map((m,i) => `<option value="2026-${String(i+1).padStart(2,"0")}">${m} 2026</option>`).join("");
+}
+
+/* ---------- defaults (date = today, limited to 2026) ---------- */
+function today2026(){
+  const d = new Date();
+  const y = d.getFullYear();
+  if(y !== 2026) return "2026-01-01";
+  return `${y}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function setDefaults(){
+  if(!$("mDate").value) $("mDate").value = today2026();
+  if(!$("jDate").value) $("jDate").value = today2026();
+}
+
+/* ---------- live totals ---------- */
+function calcMandi(){
+  const v = num($("mVajan").value), b = num($("mBhav").value), u = $("mUnit").value;
+  const t = v * b;
+  $("mTotal").textContent = money(t);
+  $("mFormula").textContent = v && b ? `${v} ${u} × ${money(b)} = ${money(t)}` : "वज़न और भाव भरें…";
+  return t;
+}
+function calcJut(){
+  const r = num($("jRate").value), q = num($("jQty").value), k = num($("jKharcha").value);
+  const t = (r * q) + k;
+  $("jTotal").textContent = money(t);
+  const parts = [];
+  if(r || q) parts.push(`${r} × ${q || 0}`);
+  if(k) parts.push(`+ ${money(k)}`);
+  $("jFormula").textContent = parts.length ? `${parts.join(" ")} = ${money(t)}` : "दर, मात्रा या खर्च भरें…";
+  return t;
+}
+["mVajan","mBhav","mUnit"].forEach(id => $(id).addEventListener("input", calcMandi));
+$("mUnit").addEventListener("change", calcMandi);
+["jRate","jQty","jKharcha"].forEach(id => $(id).addEventListener("input", calcJut));
+
+/* ---------- save ---------- */
+$("mSave").onclick = () => {
+  const d = $("mDate").value, f = $("mFasl").value.trim(), v = num($("mVajan").value), b = num($("mBhav").value);
+  if(!d) return alert("कृपया दिनांक चुनें।");
+  if(!f) return alert("कृपया फसल का नाम लिखें।");
+  if(v <= 0) return alert("कृपया वज़न भरें।");
+  if(b <= 0) return alert("कृपया भाव भरें।");
+  RECS.push({ id: Date.now()+"", type:"mandi", date:d, fasl:f, unit:$("mUnit").value, vajan:v, bhav:b,
+              total: v*b, party:$("mParty").value.trim(), note:$("mNote").value.trim(), at:new Date().toISOString() });
+  saveRecs(); renderAll();
+  $("mOk").classList.add("on"); setTimeout(()=>$("mOk").classList.remove("on"), 2500);
+  $("mFasl").value=""; $("mVajan").value=""; $("mBhav").value=""; $("mParty").value=""; $("mNote").value="";
+  calcMandi(); $("mFasl").focus();
+};
+$("jSave").onclick = () => {
+  const d = $("jDate").value, k = $("jKaam").value.trim();
+  if(!d) return alert("कृपया दिनांक चुनें।");
+  if(!k) return alert("कृपया काम का नाम लिखें।");
+  const r = num($("jRate").value), q = num($("jQty").value), kh = num($("jKharcha").value);
+  if((r*q)+kh <= 0) return alert("कृपया दर/मात्रा या खर्च में से कुछ भरें।");
+  RECS.push({ id: Date.now()+"", type:"jutaai", date:d, kaam:k, fasl:$("jFasl2").value.trim(),
+              khet:$("jKhet").value.trim(), rate:r, qty:q, kharcha:kh, total:(r*q)+kh,
+              by:$("jBy").value.trim(), note:$("jNote").value.trim(), at:new Date().toISOString() });
+  saveRecs(); renderAll();
+  $("jOk").classList.add("on"); setTimeout(()=>$("jOk").classList.remove("on"), 2500);
+  $("jKaam").value=""; $("jKhet").value=""; $("jFasl2").value=""; $("jRate").value="";
+  $("jQty").value=""; $("jKharcha").value=""; $("jBy").value=""; $("jNote").value="";
+  calcJut(); $("jKaam").focus();
+};
+$("mClear").onclick = () => { ["mFasl","mVajan","mBhav","mParty","mNote"].forEach(i=>$(i).value=""); calcMandi(); };
+$("jClear").onclick = () => { ["jKaam","jKhet","jFasl2","jRate","jQty","jKharcha","jBy","jNote"].forEach(i=>$(i).value=""); calcJut(); };
+
+/* ---------- render ---------- */
+function renderAll(){ renderStats(); renderFasl(); renderRecent(); renderHist(); renderCal(); }
+
+function renderStats(){
+  const mandi = RECS.filter(r=>r.type==="mandi").reduce((s,r)=>s+(r.total||0),0);
+  const jut = RECS.filter(r=>r.type==="jutaai").reduce((s,r)=>s+(r.total||0),0);
+  $("sMandi").textContent = money(mandi);
+  $("sJut").textContent = money(jut);
+  const net = mandi - jut;
+  $("sNet").textContent = money(net);
+  $("sNet").style.color = net >= 0 ? "var(--green-d)" : "var(--red)";
+  $("sCount").textContent = RECS.length;
+}
+
+function renderFasl(){
+  const map = {};
+  RECS.filter(r=>r.type==="mandi").forEach(r=>{
+    const k = r.fasl || "—";
+    map[k] = map[k] || { w:0, amt:0, n:0 };
+    map[k].w += (r.vajan||0); map[k].amt += (r.total||0); map[k].n++;
+  });
+  const rows = Object.entries(map).sort((a,b)=>b[1].amt-a[1].amt);
+  const tb = $("faslTable").querySelector("tbody");
+  tb.innerHTML = rows.length ? rows.map(([f,v]) => {
+    const unit = (RECS.find(r=>r.type==="mandi" && r.fasl===f)||{}).unit || "";
+    const avg = v.w ? v.amt / v.w : 0;
+    return `<tr><td><b>${f}</b></td><td>${v.w.toFixed(2)} ${unit}</td><td>${money(avg)}</td><td><b>${money(v.amt)}</b></td></tr>`;
+  }).join("") : `<tr><td colspan="4" class="empty">अभी कोई मंडी हिसाब नहीं लिखा।</td></tr>`;
+}
+
+function renderRecent(){
+  const rows = [...RECS].sort((a,b)=> (b.at||"").localeCompare(a.at||"")).slice(0,8);
+  const tb = $("recentTable").querySelector("tbody");
+  tb.innerHTML = rows.length ? rows.map(r => {
+    const det = r.type==="mandi"
+      ? `${r.fasl} · ${r.vajan} ${r.unit||""} × ${money(r.bhav)}`
+      : `${r.kaam}${r.khet ? " · " + r.khet : ""}`;
+    return `<tr><td>${fmtDate(r.date)}</td>
+      <td><span class="tag ${r.type==="mandi"?"m":"j"}">${r.type==="mandi"?"मंडी":"जुताई"}</span></td>
+      <td style="text-align:left">${det}</td><td><b>${money(r.total)}</b></td></tr>`;
+  }).join("") : `<tr><td colspan="4" class="empty">अभी कोई रिकॉर्ड नहीं।</td></tr>`;
+}
+
+function filtered(){
+  const t = $("fType").value, mo = $("fMonth").value, fa = $("fFasl").value.trim().toLowerCase(), q = $("fSearch").value.trim().toLowerCase();
+  return RECS.filter(r=>{
+    if(t && r.type !== t) return false;
+    if(mo && !(r.date||"").startsWith(mo)) return false;
+    if(fa && !((r.fasl||"")+"").toLowerCase().includes(fa)) return false;
+    if(q){
+      const hay = [r.date,r.fasl,r.kaam,r.khet,r.party,r.by,r.note].join(" ").toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  }).sort((a,b)=> (b.date||"").localeCompare(a.date||""));
+}
+
+function renderHist(){
+  const rows = filtered();
+  const tb = $("histTable").querySelector("tbody");
+  tb.innerHTML = rows.length ? rows.map(r => {
+    const isM = r.type==="mandi";
+    const item = isM ? r.fasl : r.kaam;
+    const wt = isM ? `${r.vajan} ${r.unit||""}` : (r.qty ? `${r.qty}` : "—");
+    const rate = isM ? money(r.bhav) : (r.rate ? money(r.rate) : (r.kharcha ? money(r.kharcha) : "—"));
+    const det = [r.party, r.khet, r.by, r.note].filter(Boolean).join(" · ") || "—";
+    return `<tr>
+      <td>${fmtDate(r.date)}</td>
+      <td><span class="tag ${isM?"m":"j"}">${isM?"मंडी":"जुताई"}</span></td>
+      <td style="text-align:left"><b>${item||"—"}</b></td>
+      <td>${wt}</td><td>${rate}</td><td><b>${money(r.total)}</b></td>
+      <td style="text-align:left;max-width:220px;white-space:normal">${det}</td>
+      <td><button class="btn btn-danger btn-sm" data-del="${r.id}">हटाएँ</button></td>
+    </tr>`;
+  }).join("") : `<tr><td colspan="8" class="empty">कोई रिकॉर्ड नहीं मिला।</td></tr>`;
+
+  const mandi = rows.filter(r=>r.type==="mandi").reduce((s,r)=>s+(r.total||0),0);
+  const jut = rows.filter(r=>r.type==="jutaai").reduce((s,r)=>s+(r.total||0),0);
+  $("histSum").innerHTML = `${rows.length} रिकॉर्ड · मंडी आय <b>${money(mandi)}</b> · जुताई खर्च <b>${money(jut)}</b> · शुद्ध <b>${money(mandi-jut)}</b>`;
+
+  tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
+    if(!confirm("यह रिकॉर्ड हटाना है?")) return;
+    RECS = RECS.filter(x => x.id !== b.dataset.del);
+    saveRecs(); renderAll();
+  });
+}
+["fType","fMonth","fFasl","fSearch"].forEach(id => $(id).addEventListener("input", renderHist));
+
+/* ---------- 2026 calendar ---------- */
+function buildMonths(){
+  const g = $("calGrid");
+  g.innerHTML = HN_MONTH.map((m, i) => {
+    const mm = String(i+1).padStart(2,"0");
+    return `<div class="month" data-mm="${mm}">
+      <h4>${m} 2026</h4>
+      <div class="dow">${HN_DOW.map(d=>`<span>${d}</span>`).join("")}</div>
+      <div class="days"></div>
+    </div>`;
+  }).join("");
+}
+function renderCal(){
+  const counts = {};
+  RECS.forEach(r => { if(r.date) counts[r.date] = (counts[r.date]||0) + 1; });
+  const t = today2026();
+  document.querySelectorAll("#calGrid .month").forEach(mo => {
+    const mm = mo.dataset.mm, y = 2026, first = new Date(y, +mm-1, 1).getDay();
+    const days = new Date(y, +mm, 0).getDate();
+    let html = "";
+    for(let i=0;i<first;i++) html += `<span class="off"></span>`;
+    for(let d=1; d<=days; d++){
+      const iso = `${y}-${mm}-${String(d).padStart(2,"0")}`;
+      const cls = [counts[iso] ? "mark" : "", iso===t ? "today" : ""].filter(Boolean).join(" ");
+      html += `<span class="${cls}" data-d="${iso}" title="${counts[iso]?counts[iso]+' हिसाब':''}">${d}</span>`;
+    }
+    mo.querySelector(".days").innerHTML = html;
+  });
+  document.querySelectorAll("#calGrid .days span.mark").forEach(s => s.onclick = () => {
+    go("hist");
+    $("fType").value = ""; $("fMonth").value = s.dataset.d.slice(0,7); $("fFasl").value = ""; $("fSearch").value = "";
+    renderHist();
+  });
+}
+
+/* ---------- tabs ---------- */
+function go(t){
+  document.querySelectorAll("#navTabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  ["dash","mandi","jutaai","cal","hist"].forEach(p => $("p-"+p).classList.toggle("hide", p !== t));
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+document.querySelectorAll("#navTabs button").forEach(b => b.onclick = () => go(b.dataset.t));
+
+/* ---------- CSV export ---------- */
+$("btnExport").onclick = () => {
+  if(!RECS.length) return alert("अभी कोई हिसाब नहीं है।");
+  const head = ["दिनांक","प्रकार","फसल/काम","वज़न","इकाई","भाव/दर","कुल रकम","मंडी/व्यापारी","खेत","किसने किया","टिप्पणी"];
+  const rows = [...RECS].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r => {
+    const isM = r.type==="mandi";
+    return [ r.date, isM?"मंडी":"जुताई", isM?r.fasl:r.kaam, isM?r.vajan:(r.qty||""), isM?(r.unit||""):"",
+             isM?r.bhav:(r.rate||r.kharcha||""), r.total||0, r.party||"", r.khet||"", r.by||"", (r.note||"").replace(/[\n\r]+/g," ") ];
+  });
+  const csv = "\uFEFF" + [head, ...rows].map(a => a.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
+  const a = document.createElement("a");
+  a.href = url; a.download = `kisan-hisab-${USER}-2026.csv`; a.click();
+  URL.revokeObjectURL(url);
+};
+
+/* ---------- clear all ---------- */
+$("btnClearAll").onclick = () => {
+  if(!RECS.length) return;
+  if(!confirm("सच में सारा हिसाब मिटाना है? यह वापस नहीं आएगा।")) return;
+  if(!confirm("आख़िरी बार पूछ रहा हूँ — मिटाना है?")) return;
+  RECS = []; saveRecs(); renderAll();
+};
+
+/* ---------- boot ---------- */
+buildMonths();
+$("mDate").value = today2026(); $("jDate").value = today2026();
+calcMandi(); calcJut();
+</script>
+</body>
+</html>
