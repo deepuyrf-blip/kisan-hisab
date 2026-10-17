@@ -111,6 +111,12 @@ tbody tr:last-child td{border-bottom:0}
 .tag{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px}
 .tag.m{background:var(--green-l);color:var(--green-d)}
 .tag.j{background:var(--amber-l);color:#8a5400}
+.tag.paid{background:#e3f6e9;color:#12693a;border:1px solid #b6e3c6}
+.tag.part{background:#fff4e0;color:#8a5400;border:1px solid #f2cf9a}
+.tag.due{background:var(--red-l);color:#8d2b20;border:1px solid #f5c6c0}
+.payline{font-size:13px;font-weight:600;margin-top:6px;color:var(--mut)}
+.payline b.ok{color:#12693a}
+.payline b.no{color:var(--red)}
 .empty{text-align:center;color:var(--mut);padding:34px 10px;font-size:14.5px}
 .filters{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
 @media(max-width:820px){.filters{grid-template-columns:1fr 1fr}}
@@ -227,6 +233,10 @@ tbody tr:last-child td{border-bottom:0}
         <div class="stat n"><div class="k">शुद्ध लाभ (आय − खर्च)</div><div class="v" id="sNet">₹0</div></div>
         <div class="stat n"><div class="k">कुल रिकॉर्ड</div><div class="v" id="sCount">0</div></div>
       </div>
+      <div class="stats">
+        <div class="stat g"><div class="k">✅ मिल चुका पैसा</div><div class="v" id="sRecv">₹0</div></div>
+        <div class="stat a"><div class="k">⏳ बाकी पैसा (लेना है)</div><div class="v" id="sDue">₹0</div></div>
+      </div>
       <div class="card">
         <h2><span class="em">📈</span> फसल के हिसाब से कुल बिक्री</h2>
         <p class="sub">आपने कौन-सी फसल कितने में बेची — पूरा जोड़।</p>
@@ -296,6 +306,18 @@ tbody tr:last-child td{border-bottom:0}
             <label for="mParty">मंडी / व्यापारी का नाम</label>
             <input id="mParty" placeholder="जैसे: श्री राम आढ़त">
           </div>
+          <div>
+            <label for="mPay">पैसा मिला या बाकी? <span class="req">*</span></label>
+            <select id="mPay">
+              <option value="full">✅ पूरा पैसा मिल गया</option>
+              <option value="part">🟡 थोड़ा मिला, बाकी है</option>
+              <option value="due">⏳ पूरा पैसा बाकी है</option>
+            </select>
+          </div>
+          <div id="mRecvWrap" class="hide">
+            <label for="mRecv">कितना पैसा मिल गया</label>
+            <input id="mRecv" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 5000">
+          </div>
         </div>
         <label for="mNote">टिप्पणी (मन में हो तो)</label>
         <input id="mNote" placeholder="जैसे: नमी ज़्यादा थी, कटौती हुई">
@@ -304,6 +326,7 @@ tbody tr:last-child td{border-bottom:0}
           <div>
             <div class="lbl">कुल रकम (वज़न × भाव)</div>
             <div class="formula" id="mFormula">—</div>
+            <div class="payline" id="mPayLine"></div>
           </div>
           <div class="val" id="mTotal">₹0</div>
         </div>
@@ -398,6 +421,11 @@ tbody tr:last-child td{border-bottom:0}
         <p class="sub">महीना, फसल या प्रकार से छाँटें। जोड़ नीचे अपने आप दिखेगा।</p>
         <div class="filters">
           <select id="fType"><option value="">सब प्रकार</option><option value="mandi">मंडी</option><option value="jutaai">जुताई</option></select>
+          <select id="fPay">
+            <option value="">पैसा: सब</option>
+            <option value="due">⏳ सिर्फ़ बाकी वाले</option>
+            <option value="paid">✅ सिर्फ़ मिल गए वाले</option>
+          </select>
           <select id="fMonth"></select>
           <input id="fFasl" list="faslList" placeholder="फसल से छाँटें">
           <input id="fSearch" placeholder="कुछ भी खोजें…">
@@ -405,7 +433,7 @@ tbody tr:last-child td{border-bottom:0}
         <div class="tblwrap">
           <table id="histTable">
             <thead><tr>
-              <th>दिनांक</th><th>प्रकार</th><th>फसल / काम</th><th>वज़न</th><th>भाव</th><th>रकम</th><th>ब्यौरा</th><th></th>
+              <th>दिनांक</th><th>प्रकार</th><th>फसल / काम</th><th>वज़न</th><th>भाव</th><th>रकम</th><th>पैसा मिला?</th><th>ब्यौरा</th><th></th>
             </tr></thead>
             <tbody></tbody>
           </table>
@@ -563,6 +591,19 @@ function setDefaults(){
 }
 
 /* ---------- live totals ---------- */
+/* पैसा मिला, थोड़ा मिला, या बाकी — हर रिकॉर्ड के लिए */
+function payInfo(r){
+  if(!r || r.type !== "mandi") return null;
+  const total = Number(r.total) || 0;
+  const st = r.paid || "full";
+  const recv = st === "full" ? total
+             : st === "part" ? Math.min(Number(r.received) || 0, total) : 0;
+  const due = Math.max(0, total - recv);
+  if(due <= 0.001) return { st:"full", recv: total, due: 0, cls: "paid", text: "✅ पूरा मिल गया" };
+  if(recv > 0)     return { st:"part", recv, due, cls: "part", text: `🟡 ${money(due)} बाकी` };
+  return { st:"due", recv: 0, due, cls: "due", text: `⏳ ${money(due)} बाकी` };
+}
+
 function calcMandi(){
   const v = num($("mVajan").value), b = num($("mBhav").value);
   const wu = $("mUnit").value, ru = $("mRateUnit").value;
@@ -576,6 +617,15 @@ function calcMandi(){
   } else {
     $("mFormula").textContent = "वज़न और भाव भरें…";
   }
+  /* पैसा मिला या बाकी */
+  const st = $("mPay").value;
+  $("mRecvWrap").classList.toggle("hide", st === "full");
+  const recv = st === "full" ? t : (st === "part" ? Math.min(num($("mRecv").value), t) : 0);
+  const due = Math.max(0, t - recv);
+  $("mPayLine").innerHTML = !t ? ""
+    : (due <= 0.001 ? "✅ पूरा पैसा मिल गया"
+       : (recv > 0 ? `मिला <b class="ok">${money(recv)}</b> · बाकी <b class="no">${money(due)}</b>`
+                   : `⏳ पूरा <b class="no">${money(due)}</b> बाकी है`));
   return t;
 }
 function calcJut(){
@@ -588,8 +638,8 @@ function calcJut(){
   $("jFormula").textContent = parts.length ? `${parts.join(" ")} = ${money(t)}` : "दर, मात्रा या खर्च भरें…";
   return t;
 }
-["mVajan","mBhav"].forEach(id => $(id).addEventListener("input", calcMandi));
-["mUnit","mRateUnit"].forEach(id => $(id).addEventListener("change", calcMandi));
+["mVajan","mBhav","mRecv"].forEach(id => $(id).addEventListener("input", calcMandi));
+["mUnit","mRateUnit","mPay"].forEach(id => $(id).addEventListener("change", calcMandi));
 ["jRate","jQty","jKharcha"].forEach(id => $(id).addEventListener("input", calcJut));
 
 /* ---------- save ---------- */
@@ -600,9 +650,14 @@ $("mSave").onclick = () => {
   if(!f) return alert("कृपया फसल का नाम लिखें।");
   if(v <= 0) return alert("कृपया वज़न भरें।");
   if(b <= 0) return alert("कृपया भाव भरें।");
+  const tot = calcMandi();
+  const paySt = $("mPay").value;
+  const recv = paySt === "full" ? tot
+             : paySt === "part" ? Math.min(num($("mRecv").value), tot) : 0;
   const rec = { id: EDIT_M || (Date.now()+""), type:"mandi", date:d, fasl:f,
                 unit:$("mUnit").value, vajan:v, bhav:b, rateUnit:$("mRateUnit").value,
-                total: calcMandi(), party:$("mParty").value.trim(),
+                total: tot, paid: paySt, received: recv,
+                party:$("mParty").value.trim(),
                 note:$("mNote").value.trim(), at:new Date().toISOString() };
   if(EDIT_M){ const i = RECS.findIndex(x=>x.id===EDIT_M); if(i>=0) RECS[i] = rec; EDIT_M = null; $("mSave").textContent = "💾 मंडी हिसाब सेव करें"; }
   else RECS.push(rec);
@@ -610,6 +665,7 @@ $("mSave").onclick = () => {
   localStorage.setItem("kisan_unit_"+USER, JSON.stringify({ w:$("mUnit").value, r:$("mRateUnit").value }));
   $("mOk").classList.add("on"); setTimeout(()=>$("mOk").classList.remove("on"), 2500);
   $("mFasl").value=""; $("mVajan").value=""; $("mBhav").value=""; $("mParty").value=""; $("mNote").value="";
+  $("mRecv").value=""; $("mPay").value="full";
   calcMandi(); $("mFasl").focus();
 };
 $("jSave").onclick = () => {
@@ -641,6 +697,8 @@ function editRec(id){
     $("mUnit").value = r.unit || "क्विंटल";
     $("mVajan").value = r.vajan ?? ""; $("mBhav").value = r.bhav ?? "";
     $("mRateUnit").value = r.rateUnit || r.unit || "क्विंटल";
+    $("mPay").value = r.paid || "full";
+    $("mRecv").value = (r.paid === "part") ? (r.received ?? "") : "";
     $("mParty").value = r.party || ""; $("mNote").value = r.note || "";
     EDIT_M = r.id; $("mSave").textContent = "💾 बदलाव सेव करें";
     calcMandi();
@@ -667,6 +725,11 @@ function renderStats(){
   $("sNet").textContent = money(net);
   $("sNet").style.color = net >= 0 ? "var(--green-d)" : "var(--red)";
   $("sCount").textContent = RECS.length;
+  let recv = 0, due = 0;
+  RECS.forEach(r => { const p = payInfo(r); if(p){ recv += p.recv; due += p.due; } });
+  $("sRecv").textContent = money(recv);
+  $("sDue").textContent = money(due);
+  $("sDue").style.color = due > 0 ? "var(--red)" : "var(--green-d)";
 }
 
 function renderFasl(){
@@ -700,8 +763,14 @@ function renderRecent(){
 
 function filtered(){
   const t = $("fType").value, mo = $("fMonth").value, fa = $("fFasl").value.trim().toLowerCase(), q = $("fSearch").value.trim().toLowerCase();
+  const fp = $("fPay").value;
   return RECS.filter(r=>{
     if(t && r.type !== t) return false;
+    if(fp){
+      const p = payInfo(r);
+      if(fp === "due" && !(p && p.due > 0.001)) return false;
+      if(fp === "paid" && !(p && p.due <= 0.001)) return false;
+    }
     if(mo && !(r.date||"").startsWith(mo)) return false;
     if(fa && !((r.fasl||"")+"").toLowerCase().includes(fa)) return false;
     if(q){
@@ -722,21 +791,29 @@ function renderHist(){
     const rate = isM ? `${money(r.bhav)}/${r.rateUnit || r.unit || "इकाई"}`
                      : (r.rate ? `${money(r.rate)}` : (r.kharcha ? `${money(r.kharcha)}` : "—"));
     const det = [r.party, r.khet, r.by, r.note].filter(Boolean).join(" · ") || "—";
+    const p = payInfo(r);
+    const payCell = !p ? `<span class="tag j">—</span>`
+      : `<span class="tag ${p.cls}">${p.text}</span>`
+        + (p.due > 0.001 ? `<br><button class="btn btn-g btn-sm" style="margin-top:5px" data-pay="${r.id}">✅ पैसा मिल गया</button>` : "");
     return `<tr>
       <td>${fmtDate(r.date)}</td>
       <td><span class="tag ${isM?"m":"j"}">${isM?"मंडी":"जुताई"}</span></td>
       <td style="text-align:left"><b>${item||"—"}</b></td>
       <td>${wt}</td><td>${rate}</td><td><b>${money(r.total)}</b></td>
-      <td style="text-align:left;max-width:220px;white-space:normal">${det}</td>
+      <td>${payCell}</td>
+      <td style="text-align:left;max-width:200px;white-space:normal">${det}</td>
       <td style="white-space:nowrap">
         <button class="btn btn-g btn-sm" data-edit="${r.id}">✏️ बदलें</button>
         <button class="btn btn-danger btn-sm" data-del="${r.id}">हटाएँ</button></td>
     </tr>`;
-  }).join("") : `<tr><td colspan="8" class="empty">कोई रिकॉर्ड नहीं मिला।</td></tr>`;
+  }).join("") : `<tr><td colspan="9" class="empty">कोई रिकॉर्ड नहीं मिला।</td></tr>`;
 
   const mandi = rows.filter(r=>r.type==="mandi").reduce((s,r)=>s+(r.total||0),0);
   const jut = rows.filter(r=>r.type==="jutaai").reduce((s,r)=>s+(r.total||0),0);
-  $("histSum").innerHTML = `${rows.length} रिकॉर्ड · मंडी आय <b>${money(mandi)}</b> · जुताई खर्च <b>${money(jut)}</b> · शुद्ध <b>${money(mandi-jut)}</b>`;
+  let recv = 0, due = 0;
+  rows.forEach(r => { const p = payInfo(r); if(p){ recv += p.recv; due += p.due; } });
+  $("histSum").innerHTML = `${rows.length} रिकॉर्ड · मंडी आय <b>${money(mandi)}</b> · जुताई खर्च <b>${money(jut)}</b> · शुद्ध <b>${money(mandi-jut)}</b>`
+    + `<br>✅ मिल चुका <b>${money(recv)}</b> · ⏳ बाकी <b style="color:var(--red)">${money(due)}</b>`;
 
   tb.querySelectorAll("[data-del]").forEach(b => b.onclick = () => {
     if(!confirm("यह रिकॉर्ड हटाना है?")) return;
@@ -744,8 +821,16 @@ function renderHist(){
     saveRecs(); renderAll();
   });
   tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editRec(b.dataset.edit));
+  /* एक टैप में "पैसा मिल गया" */
+  tb.querySelectorAll("[data-pay]").forEach(b => b.onclick = () => {
+    const r = RECS.find(x => x.id === b.dataset.pay); if(!r) return;
+    if(!confirm("पूरा पैसा मिल गया? — बाकी 0 हो जाएगा।")) return;
+    r.paid = "full"; r.received = Number(r.total) || 0;
+    saveRecs(); renderAll();
+  });
 }
-["fType","fMonth","fFasl","fSearch"].forEach(id => $(id).addEventListener("input", renderHist));
+["fType","fMonth","fFasl","fSearch","fPay"].forEach(id => $(id).addEventListener("input", renderHist));
+$("fPay").addEventListener("change", renderHist);
 
 /* ---------- 2026 calendar ---------- */
 function buildMonths(){
@@ -793,11 +878,14 @@ document.querySelectorAll("#navTabs button").forEach(b => b.onclick = () => go(b
 /* ---------- CSV export ---------- */
 $("btnExport").onclick = () => {
   if(!RECS.length) return alert("अभी कोई हिसाब नहीं है।");
-  const head = ["दिनांक","प्रकार","फसल/काम","वज़न","इकाई","भाव/दर","कुल रकम","मंडी/व्यापारी","खेत","किसने किया","टिप्पणी"];
+  const head = ["दिनांक","प्रकार","फसल/काम","वज़न","इकाई","भाव/दर","कुल रकम","मिला पैसा","बाकी पैसा","मंडी/व्यापारी","खेत","किसने किया","टिप्पणी"];
   const rows = [...RECS].sort((a,b)=>(a.date||"").localeCompare(b.date||"")).map(r => {
     const isM = r.type==="mandi";
+    const p = payInfo(r);
     return [ r.date, isM?"मंडी":"जुताई", isM?r.fasl:r.kaam, isM?r.vajan:(r.qty||""), isM?(r.unit||""):"",
-             isM?r.bhav:(r.rate||r.kharcha||""), r.total||0, r.party||"", r.khet||"", r.by||"", (r.note||"").replace(/[\n\r]+/g," ") ];
+             isM?r.bhav:(r.rate||r.kharcha||""), r.total||0,
+             p ? (Math.round(p.recv*100)/100) : "", p ? (Math.round(p.due*100)/100) : "",
+             r.party||"", r.khet||"", r.by||"", (r.note||"").replace(/[\n\r]+/g," ") ];
   });
   const csv = "\uFEFF" + [head, ...rows].map(a => a.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], {type:"text/csv;charset=utf-8"}));
