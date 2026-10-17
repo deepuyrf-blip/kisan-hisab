@@ -271,8 +271,18 @@ tbody tr:last-child td{border-bottom:0}
             <input id="mVajan" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 12.5" required>
           </div>
           <div>
-            <label for="mBhav">भाव / रेट (प्रति इकाई) <span class="req">*</span></label>
+            <label for="mBhav">भाव / रेट <span class="req">*</span></label>
             <input id="mBhav" type="number" step="0.01" min="0" inputmode="decimal" placeholder="जैसे: 2400" required>
+          </div>
+          <div>
+            <label for="mRateUnit">यह भाव किसका है</label>
+            <select id="mRateUnit">
+              <option value="क्विंटल">प्रति क्विंटल (100 किलो)</option>
+              <option value="किलो">प्रति किलो</option>
+              <option value="टन">प्रति टन</option>
+              <option value="मन">प्रति मन (40 किलो)</option>
+              <option value="बोरा">प्रति बोरा (50 किलो)</option>
+            </select>
           </div>
           <div>
             <label for="mParty">मंडी / व्यापारी का नाम</label>
@@ -415,6 +425,10 @@ const LS_USERS = "kisan_users_v1";
 const LS_KEY = (u) => "kisan_recs_v1_" + u;
 const money = (n) => "₹" + (Math.round((Number(n)||0) * 100) / 100).toLocaleString("en-IN", {maximumFractionDigits:2});
 const num = (v) => { const x = parseFloat(v); return isFinite(x) ? x : 0; };
+/* वज़न की इकाइयाँ किलो में — मंडी में भाव अक्सर क्विंटल का होता है, वज़न किलो में */
+const KG = { "किलो": 1, "क्विंटल": 100, "टन": 1000, "मन": 40, "बोरा": 50 };
+const unitKg = (u) => KG[u] || 1;
+const wtxt = (n) => (Math.round((Number(n) || 0) * 100) / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 });
 const HN_MONTH = ["जनवरी","फ़रवरी","मार्च","अप्रैल","मई","जून","जुलाई","अगस्त","सितंबर","अक्टूबर","नवंबर","दिसंबर"];
 const HN_DOW = ["रवि","सोम","मंगल","बुध","गुरु","शुक्र","शनि"];
 const fmtDate = (iso) => { const [y,m,d] = (iso||"").split("-"); return d ? `${d}-${m}-${y}` : iso; };
@@ -503,14 +517,29 @@ function today2026(){
 function setDefaults(){
   if(!$("mDate").value) $("mDate").value = today2026();
   if(!$("jDate").value) $("jDate").value = today2026();
+  /* पिछली बार जो इकाई चुनी थी, वही याद रखो */
+  try{
+    const last = JSON.parse(localStorage.getItem("kisan_unit_" + USER) || "null");
+    if(last && last.w) $("mUnit").value = last.w;
+    if(last && last.r) $("mRateUnit").value = last.r;
+  }catch(e){}
+  calcMandi(); calcJut();
 }
 
 /* ---------- live totals ---------- */
 function calcMandi(){
-  const v = num($("mVajan").value), b = num($("mBhav").value), u = $("mUnit").value;
-  const t = v * b;
+  const v = num($("mVajan").value), b = num($("mBhav").value);
+  const wu = $("mUnit").value, ru = $("mRateUnit").value;
+  const kg = v * unitKg(wu);
+  const t = kg * (b / unitKg(ru));           /* किलो × भाव/किलो */
   $("mTotal").textContent = money(t);
-  $("mFormula").textContent = v && b ? `${v} ${u} × ${money(b)} = ${money(t)}` : "वज़न और भाव भरें…";
+  if(v && b){
+    $("mFormula").textContent = (wu === ru)
+      ? `${wtxt(v)} ${wu} × ${money(b)} = ${money(t)}`
+      : `${wtxt(v)} ${wu} (= ${wtxt(kg)} किलो) × ${money(b)} प्रति ${ru} = ${money(t)}`;
+  } else {
+    $("mFormula").textContent = "वज़न और भाव भरें…";
+  }
   return t;
 }
 function calcJut(){
@@ -523,20 +552,26 @@ function calcJut(){
   $("jFormula").textContent = parts.length ? `${parts.join(" ")} = ${money(t)}` : "दर, मात्रा या खर्च भरें…";
   return t;
 }
-["mVajan","mBhav","mUnit"].forEach(id => $(id).addEventListener("input", calcMandi));
-$("mUnit").addEventListener("change", calcMandi);
+["mVajan","mBhav"].forEach(id => $(id).addEventListener("input", calcMandi));
+["mUnit","mRateUnit"].forEach(id => $(id).addEventListener("change", calcMandi));
 ["jRate","jQty","jKharcha"].forEach(id => $(id).addEventListener("input", calcJut));
 
 /* ---------- save ---------- */
+let EDIT_M = null, EDIT_J = null;
 $("mSave").onclick = () => {
   const d = $("mDate").value, f = $("mFasl").value.trim(), v = num($("mVajan").value), b = num($("mBhav").value);
   if(!d) return alert("कृपया दिनांक चुनें।");
   if(!f) return alert("कृपया फसल का नाम लिखें।");
   if(v <= 0) return alert("कृपया वज़न भरें।");
   if(b <= 0) return alert("कृपया भाव भरें।");
-  RECS.push({ id: Date.now()+"", type:"mandi", date:d, fasl:f, unit:$("mUnit").value, vajan:v, bhav:b,
-              total: v*b, party:$("mParty").value.trim(), note:$("mNote").value.trim(), at:new Date().toISOString() });
+  const rec = { id: EDIT_M || (Date.now()+""), type:"mandi", date:d, fasl:f,
+                unit:$("mUnit").value, vajan:v, bhav:b, rateUnit:$("mRateUnit").value,
+                total: calcMandi(), party:$("mParty").value.trim(),
+                note:$("mNote").value.trim(), at:new Date().toISOString() };
+  if(EDIT_M){ const i = RECS.findIndex(x=>x.id===EDIT_M); if(i>=0) RECS[i] = rec; EDIT_M = null; $("mSave").textContent = "💾 मंडी हिसाब सेव करें"; }
+  else RECS.push(rec);
   saveRecs(); renderAll();
+  localStorage.setItem("kisan_unit_"+USER, JSON.stringify({ w:$("mUnit").value, r:$("mRateUnit").value }));
   $("mOk").classList.add("on"); setTimeout(()=>$("mOk").classList.remove("on"), 2500);
   $("mFasl").value=""; $("mVajan").value=""; $("mBhav").value=""; $("mParty").value=""; $("mNote").value="";
   calcMandi(); $("mFasl").focus();
@@ -547,9 +582,11 @@ $("jSave").onclick = () => {
   if(!k) return alert("कृपया काम का नाम लिखें।");
   const r = num($("jRate").value), q = num($("jQty").value), kh = num($("jKharcha").value);
   if((r*q)+kh <= 0) return alert("कृपया दर/मात्रा या खर्च में से कुछ भरें।");
-  RECS.push({ id: Date.now()+"", type:"jutaai", date:d, kaam:k, fasl:$("jFasl2").value.trim(),
-              khet:$("jKhet").value.trim(), rate:r, qty:q, kharcha:kh, total:(r*q)+kh,
-              by:$("jBy").value.trim(), note:$("jNote").value.trim(), at:new Date().toISOString() });
+  const rec = { id: EDIT_J || (Date.now()+""), type:"jutaai", date:d, kaam:k, fasl:$("jFasl2").value.trim(),
+                khet:$("jKhet").value.trim(), rate:r, qty:q, kharcha:kh, total:(r*q)+kh,
+                by:$("jBy").value.trim(), note:$("jNote").value.trim(), at:new Date().toISOString() };
+  if(EDIT_J){ const i = RECS.findIndex(x=>x.id===EDIT_J); if(i>=0) RECS[i] = rec; EDIT_J = null; $("jSave").textContent = "💾 जुताई हिसाब सेव करें"; }
+  else RECS.push(rec);
   saveRecs(); renderAll();
   $("jOk").classList.add("on"); setTimeout(()=>$("jOk").classList.remove("on"), 2500);
   $("jKaam").value=""; $("jKhet").value=""; $("jFasl2").value=""; $("jRate").value="";
@@ -558,6 +595,29 @@ $("jSave").onclick = () => {
 };
 $("mClear").onclick = () => { ["mFasl","mVajan","mBhav","mParty","mNote"].forEach(i=>$(i).value=""); calcMandi(); };
 $("jClear").onclick = () => { ["jKaam","jKhet","jFasl2","jRate","jQty","jKharcha","jBy","jNote"].forEach(i=>$(i).value=""); calcJut(); };
+
+/* ---------- एक रिकॉर्ड बदलें ---------- */
+function editRec(id){
+  const r = RECS.find(x => x.id === id); if(!r) return;
+  if(r.type === "mandi"){
+    go("mandi");
+    $("mDate").value = r.date || ""; $("mFasl").value = r.fasl || "";
+    $("mUnit").value = r.unit || "क्विंटल";
+    $("mVajan").value = r.vajan ?? ""; $("mBhav").value = r.bhav ?? "";
+    $("mRateUnit").value = r.rateUnit || r.unit || "क्विंटल";
+    $("mParty").value = r.party || ""; $("mNote").value = r.note || "";
+    EDIT_M = r.id; $("mSave").textContent = "💾 बदलाव सेव करें";
+    calcMandi();
+  } else {
+    go("jutaai");
+    $("jDate").value = r.date || ""; $("jKaam").value = r.kaam || "";
+    $("jKhet").value = r.khet || ""; $("jFasl2").value = r.fasl || "";
+    $("jRate").value = r.rate ?? ""; $("jQty").value = r.qty ?? "";
+    $("jKharcha").value = r.kharcha ?? ""; $("jBy").value = r.by || ""; $("jNote").value = r.note || "";
+    EDIT_J = r.id; $("jSave").textContent = "💾 बदलाव सेव करें";
+    calcJut();
+  }
+}
 
 /* ---------- render ---------- */
 function renderAll(){ renderStats(); renderFasl(); renderRecent(); renderHist(); renderCal(); }
@@ -622,8 +682,9 @@ function renderHist(){
   tb.innerHTML = rows.length ? rows.map(r => {
     const isM = r.type==="mandi";
     const item = isM ? r.fasl : r.kaam;
-    const wt = isM ? `${r.vajan} ${r.unit||""}` : (r.qty ? `${r.qty}` : "—");
-    const rate = isM ? money(r.bhav) : (r.rate ? money(r.rate) : (r.kharcha ? money(r.kharcha) : "—"));
+    const wt = isM ? `${wtxt(r.vajan)} ${r.unit||""}` : (r.qty ? `${wtxt(r.qty)}` : "—");
+    const rate = isM ? `${money(r.bhav)}/${r.rateUnit || r.unit || "इकाई"}`
+                     : (r.rate ? `${money(r.rate)}` : (r.kharcha ? `${money(r.kharcha)}` : "—"));
     const det = [r.party, r.khet, r.by, r.note].filter(Boolean).join(" · ") || "—";
     return `<tr>
       <td>${fmtDate(r.date)}</td>
@@ -631,7 +692,9 @@ function renderHist(){
       <td style="text-align:left"><b>${item||"—"}</b></td>
       <td>${wt}</td><td>${rate}</td><td><b>${money(r.total)}</b></td>
       <td style="text-align:left;max-width:220px;white-space:normal">${det}</td>
-      <td><button class="btn btn-danger btn-sm" data-del="${r.id}">हटाएँ</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn-g btn-sm" data-edit="${r.id}">✏️ बदलें</button>
+        <button class="btn btn-danger btn-sm" data-del="${r.id}">हटाएँ</button></td>
     </tr>`;
   }).join("") : `<tr><td colspan="8" class="empty">कोई रिकॉर्ड नहीं मिला।</td></tr>`;
 
@@ -644,6 +707,7 @@ function renderHist(){
     RECS = RECS.filter(x => x.id !== b.dataset.del);
     saveRecs(); renderAll();
   });
+  tb.querySelectorAll("[data-edit]").forEach(b => b.onclick = () => editRec(b.dataset.edit));
 }
 ["fType","fMonth","fFasl","fSearch"].forEach(id => $(id).addEventListener("input", renderHist));
 
